@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Free PMS Assessment — The PMS Practitioner</title>
+</head>
+<body style="margin:0;">
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+<script type="text/babel">
+
+/* ---------------------------------------------------------
+   CONTENT
+--------------------------------------------------------- */
+
+const SCORED_QUESTIONS = [
+  {
+    id: "q1",
+    text: "What best describes what you've tried so far?",
+    options: [
+      { label: "I've tried a lot — elimination diets, supplements, tracking apps, research", state: "A" },
+      { label: "I mentioned it to a doctor and was offered the pill, or told it's normal", state: "B" },
+      { label: "Honestly, not much — I mostly just get through it", state: "C" },
+      { label: "I thought PMS was normal", state: "B" },
+    ],
+  },
+  {
+    id: "q2",
+    text: "Which of these feels closest to true?",
+    options: [
+      { label: "I've researched enough to teach a small class, but I'm still stuck", state: "A" },
+      { label: "I've stopped expecting anyone to actually explain what's going on", state: "B" },
+      { label: "I just quietly plan my life around it every month", state: "C" },
+    ],
+  },
+  {
+    id: "q3",
+    text: "What's actually stopped you from getting a straight answer?",
+    options: [
+      { label: "I've had answers — just none that applied to me specifically", state: "A" },
+      { label: "The answers I got felt rushed or dismissive", state: "B" },
+      { label: "I've never really gone looking for one", state: "C" },
+      { label: "I didn't know anything could be done for PMS", state: "C" },
+    ],
+  },
+  {
+    id: "q5",
+    text: "What's the story you tell yourself about it?",
+    options: [
+      { label: "That I'm doing something wrong, because everyone else seems to manage", state: "A" },
+      { label: "That this is just what my body does now, and I've made peace with it", state: "B" },
+      { label: "That it's not bad enough to make a big deal of", state: "C" },
+    ],
+  },
+];
+
+const FREE_QUESTIONS = [
+  {
+    id: "q6",
+    text: "If one thing changed first, what would you want it to be?",
+    placeholder: "Type your answer",
+  },
+  {
+    id: "q7",
+    text: "What would it mean for your life if this week didn't own you anymore?",
+    placeholder: "Type your answer",
+  },
+];
+
+const BRIDGE_TEXT =
+  "Taking this seriously enough to sit with these questions was the actual hard part — most people spend years being told this is just what a woman's body does, and never stop to ask if that's true. It's not. The next part isn't more researching. It's someone actually showing you the way from here.";
+
+const RESULTS = {
+  A: {
+    eyebrow: "IF THIS IS YOU",
+    titleFn: (name) =>
+      name ? `${name}, you've done the research. You're still stuck.` : "You've done the research. You're still stuck.",
+    paragraph:
+      "You're not under-informed — you're over-informed and under-supported. The elimination diets, the supplement stacks, the apps you've tracked your cycle in — none of that was wasted effort, but none of it was built around you specifically either, which is why it only ever half-worked. The real cost isn't just what you spent on things that didn't help. It's the hours that went into researching instead of living your actual life, and the way each thing that fell short made you trust your own body a little less.",
+    ctaHeadline: "Book the Rhythm Reset",
+    ctaSub:
+      "a plan built from your actual symptoms, history, and body — not a generic one-size-fits-all protocol.",
+  },
+  B: {
+    eyebrow: "IF THIS IS YOU",
+    titleFn: (name) =>
+      name ? `${name}, you stopped expecting an answer.` : "You stopped expecting an answer.",
+    paragraph:
+      "Somewhere along the way, you stopped expecting an answer. Maybe a doctor offered you the pill and moved on. Maybe you were told it's normal, or that it's \u201cjust PMS\u201d — a label that usually ends the conversation instead of starting one. Nearly half of women experience PMS, and for around 1 in 5, it's severe enough to disrupt daily life. What you've been living with was never you being dramatic. It just never got looked into properly.",
+    ctaHeadline: "Book the Rhythm Reset",
+    ctaSub:
+      "starting with a 90-minute consultation that finally looks at your full history, not just your symptoms in isolation.",
+  },
+  C: {
+    eyebrow: "IF THIS IS YOU",
+    titleFn: (name) =>
+      name ? `${name}, you're managing. That's not the same as fine.` : "You're managing. That's not the same as fine.",
+    paragraph:
+      "You're not in crisis. You're managing — which might be exactly why no one's stepped in to help you. But you still think about it every single month, before it's even started, planning around a week that hasn't happened yet. Over a reproductive lifetime, that's roughly 480 months of bracing for something that could actually be looked into instead.",
+    ctaHeadline: "Book the Rhythm Reset",
+    ctaSub: "and stop planning your life around a week that hasn't happened yet.",
+  },
+};
+
+const SECONDARY_CTA = "Book a free 10-minute call";
+
+/* ---------------------------------------------------------
+   HELPERS
+--------------------------------------------------------- */
+
+function computeResultState(answers) {
+  const counts = { A: 0, B: 0, C: 0 };
+  ["q1", "q2", "q3", "q5"].forEach((k) => {
+    if (answers[k]) counts[answers[k].state] += 1;
+  });
+  const max = Math.max(counts.A, counts.B, counts.C);
+  const tied = Object.keys(counts).filter((k) => counts[k] === max);
+  if (tied.length === 1) return tied[0];
+  const q2State = answers.q2 && answers.q2.state;
+  if (q2State && tied.includes(q2State)) return q2State;
+  return tied[0];
+}
+
+function validEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/* ---------------------------------------------------------
+   COMPONENT
+--------------------------------------------------------- */
+
+const TOTAL_QUESTIONS = SCORED_QUESTIONS.length + FREE_QUESTIONS.length; // 6
+const CONDITION_OPTIONS = ["PMS", "Endometriosis", "PMOS", "Other"];
+const PRIVACY_POLICY_URL = "/privacy-policy.pdf"; // Replace once the Privacy Policy PDF is live
+
+function PMSAssessment() {
+  // step: 'intro' | 0..5 (question index) | 'capture' | 'result' | 'registerForm' | 'sent'
+  const [step, setStep] = React.useState("intro");
+  const [answers, setAnswers] = React.useState({});
+  const [draftText, setDraftText] = React.useState("");
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [consent, setConsent] = React.useState(false);
+  const [formError, setFormError] = React.useState("");
+  const [location, setLocation] = React.useState("");
+  const [conditions, setConditions] = React.useState([]);
+  const [regFormError, setRegFormError] = React.useState("");
+  const [nextStep, setNextStep] = React.useState("call");
+  const [registerConsent, setRegisterConsent] = React.useState(false);
+
+  const allQuestions = [...SCORED_QUESTIONS, ...FREE_QUESTIONS];
+
+  const goToStep = (n) => {
+    if (typeof n === "number") {
+      const q = allQuestions[n];
+      if (q && q.placeholder) setDraftText(answers[q.id] || "");
+    }
+    setStep(n);
+  };
+
+  const handleStart = () => {
+    setAnswers({});
+    setDraftText("");
+    setLocation("");
+    setConditions([]);
+    setRegFormError("");
+    goToStep(0);
+  };
+
+  const handleSelectOption = (question, option) => {
+    const updated = { ...answers, [question.id]: option };
+    setAnswers(updated);
+    const idx = allQuestions.findIndex((q) => q.id === question.id);
+    setTimeout(() => goToStep(idx + 1 < allQuestions.length ? idx + 1 : "capture"), 220);
+  };
+
+  const handleFreeTextNext = (question) => {
+    const updated = { ...answers, [question.id]: draftText.trim() };
+    setAnswers(updated);
+    const idx = allQuestions.findIndex((q) => q.id === question.id);
+    setDraftText("");
+    goToStep(idx + 1 < allQuestions.length ? idx + 1 : "capture");
+  };
+
+  const handleBack = () => {
+    if (step === "capture") {
+      goToStep(allQuestions.length - 1);
+      return;
+    }
+    if (step === "registerForm") {
+      setStep("result");
+      return;
+    }
+    if (typeof step === "number" && step > 0) {
+      goToStep(step - 1);
+    } else if (step === 0) {
+      setStep("intro");
+    }
+  };
+
+  const handleSubmitCapture = (e) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setFormError("Enter your first name.");
+      return;
+    }
+    if (!validEmail(email)) {
+      setFormError("Enter a valid email address.");
+      return;
+    }
+    if (!consent) {
+      setFormError("Please tick the box so I know it's okay to send your result.");
+      return;
+    }
+    setFormError("");
+    setStep("result");
+  };
+
+  const toggleCondition = (option) => {
+    setConditions((prev) => {
+      if (option === "Other") {
+        return prev.includes("Other") ? [] : ["Other"];
+      }
+      const withoutOther = prev.filter((c) => c !== "Other");
+      if (withoutOther.includes(option)) {
+        return withoutOther.filter((c) => c !== option);
+      }
+      return [...withoutOther, option];
+    });
+  };
+
+  const handleOpenRegisterForm = () => {
+    setRegFormError("");
+    setNextStep("call");
+    setRegisterConsent(false);
+    setStep("registerForm");
+  };
+
+  const buildRegistrationMailto = () => {
+    const subject = "Registering my interest — The Rhythm Reset";
+    const nextStepLine =
+      nextStep === "call"
+        ? "I'd like to book a free 10-minute call first."
+        : "I'm ready to book the Rhythm Reset now.";
+    const lines = [
+      "Hi Coline,",
+      "",
+      "I've just done the free PMS assessment and I'd like to register my interest in the Rhythm Reset.",
+      "",
+      `Name: ${name}`,
+      `Current location: ${location}`,
+      `What I'm dealing with: ${conditions.join(", ")}`,
+      "",
+      nextStepLine,
+      "",
+    ];
+    return `mailto:colinemazeaud@marellehealth.com?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(lines.join("\n"))}`;
+  };
+
+  const handleSendRegistration = () => {
+    if (!name.trim()) {
+      setRegFormError("Enter your first name.");
+      return;
+    }
+    if (!location.trim()) {
+      setRegFormError("Let me know your current location.");
+      return;
+    }
+    if (conditions.length === 0) {
+      setRegFormError("Choose at least one option.");
+      return;
+    }
+    if (!registerConsent) {
+      setRegFormError("Please tick the box to confirm you're happy to proceed.");
+      return;
+    }
+    setRegFormError("");
+    window.location.href = buildRegistrationMailto();
+    setStep("sent");
+  };
+
+  const resultState = step === "result" || step === "registerForm" || step === "sent"
+    ? computeResultState(answers)
+    : null;
+  const result = resultState ? RESULTS[resultState] : null;
+
+  const progress =
+    step === "intro"
+      ? 0
+      : step === "capture"
+      ? 92
+      : step === "result" || step === "registerForm" || step === "sent"
+      ? 100
+      : Math.round(((step + 0.5) / TOTAL_QUESTIONS) * 85) + 5;
+
+  return (
+    <div className="pms-root">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
+
+        html, body, #root, #app {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }
+
+        .pms-root {
+          --cream: #F5F0E6;
+          --cream-panel: #EDE2D0;
+          --rose: #E7C3BB;
+          --rose-deep: #CB8577;
+          --maroon: #7A241F;
+          --maroon-deep: #591A16;
+          --ink: #3A1815;
+          --text: #5B4B41;
+          --line: rgba(58, 24, 21, 0.14);
+          --white: #FBF8F2;
+
+          font-family: 'Inter', -apple-system, sans-serif;
+          background: var(--cream);
+          color: var(--text);
+          min-height: 100vh;
+          width: 100%;
+          box-sizing: border-box;
+          position: relative;
+          overflow-x: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .pms-root *, .pms-root *::before, .pms-root *::after {
+          box-sizing: border-box;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .pms-root * { transition: none !important; animation: none !important; }
+        }
+
+        .pms-decor {
+          position: absolute;
+          top: -120px;
+          right: -140px;
+          width: 340px;
+          height: 340px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 35% 30%, var(--rose) 0%, var(--rose-deep) 100%);
+          opacity: 0.55;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .pms-progress-track {
+          position: sticky;
+          top: 0;
+          height: 3px;
+          width: 100%;
+          background: var(--line);
+          z-index: 10;
+        }
+        .pms-progress-fill {
+          height: 100%;
+          background: var(--maroon);
+          transition: width 0.35s ease;
+        }
+
+        .pms-header {
+          position: relative;
+          z-index: 2;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--line);
+          background: var(--cream-panel);
+        }
+        .pms-wordmark {
+          font-family: 'Fraunces', serif;
+          font-weight: 600;
+          font-size: 17px;
+          color: var(--maroon-deep);
+          letter-spacing: 0.01em;
+        }
+        .pms-step-label {
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--rose-deep);
+          font-weight: 600;
+        }
+
+        .pms-body {
+          position: relative;
+          z-index: 1;
+          max-width: 620px;
+          width: 100%;
+          margin: 0 auto;
+          padding: 56px 24px 80px;
+          flex: 1;
+        }
+
+        .pms-back {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: none;
+          border: none;
+          color: var(--rose-deep);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 0;
+          margin-bottom: 28px;
+        }
+        .pms-back:hover { color: var(--maroon); }
+
+        .pms-eyebrow {
+          font-size: 12px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--rose-deep);
+          font-weight: 600;
+          margin-bottom: 14px;
+        }
+
+        .pms-h1 {
+          font-family: 'Fraunces', serif;
+          font-weight: 600;
+          color: var(--ink);
+          font-size: 34px;
+          line-height: 1.18;
+          letter-spacing: -0.01em;
+          margin: 0 0 18px;
+        }
+        .pms-lede {
+          font-size: 16px;
+          line-height: 1.65;
+          color: var(--text);
+          margin: 0 0 32px;
+          max-width: 52ch;
+        }
+
+        .pms-question-h {
+          font-family: 'Fraunces', serif;
+          font-weight: 600;
+          color: var(--ink);
+          font-size: 26px;
+          line-height: 1.3;
+          margin: 0 0 28px;
+        }
+        .pms-optional-tag {
+          font-family: 'Inter', sans-serif;
+          font-weight: 500;
+          font-size: 14px;
+          color: var(--rose-deep);
+        }
+
+        .pms-options {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .pms-option {
+          text-align: left;
+          background: var(--white);
+          border: 1px solid var(--line);
+          border-radius: 3px;
+          padding: 16px 18px;
+          font-family: 'Inter', sans-serif;
+          font-size: 15px;
+          line-height: 1.5;
+          color: var(--ink);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          transition: border-color 0.15s ease, background 0.15s ease;
+          -webkit-tap-highlight-color: transparent;
+          -webkit-appearance: none;
+          appearance: none;
+          outline: none;
+        }
+        .pms-option:hover {
+          border-color: var(--rose-deep);
+          background: #FDFAF4;
+        }
+        .pms-option:active {
+          border-color: var(--line);
+          background: var(--white);
+        }
+        .pms-option:focus {
+          outline: none;
+          border-color: var(--line);
+        }
+        .pms-option:focus-visible {
+          outline: 2px solid var(--maroon);
+          outline-offset: 2px;
+        }
+        .pms-option.selected,
+        .pms-option.selected:active,
+        .pms-option.selected:hover {
+          border-color: var(--maroon);
+          background: #FCF3EF;
+        }
+        .pms-option-check {
+          flex-shrink: 0;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 1.5px solid var(--rose-deep);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--maroon);
+        }
+
+        .pms-checkbox-list {
+          display: flex;
+          flex-direction: column;
+        }
+        .pms-checkbox-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .pms-checkbox-item:last-child {
+          border-bottom: none;
+        }
+        .pms-checkbox-item input {
+          width: 18px;
+          height: 18px;
+          accent-color: var(--maroon);
+          flex-shrink: 0;
+        }
+        .pms-checkbox-item label {
+          font-size: 15px;
+          color: var(--ink);
+        }
+
+        .pms-textarea {
+          width: 100%;
+          background: var(--white);
+          border: 1px solid var(--line);
+          border-radius: 3px;
+          padding: 16px 18px;
+          font-family: 'Inter', sans-serif;
+          font-size: 15px;
+          color: var(--ink);
+          resize: none;
+          min-height: 92px;
+          line-height: 1.5;
+        }
+        .pms-textarea:focus-visible {
+          outline: 2px solid var(--maroon);
+          outline-offset: 2px;
+        }
+
+        .pms-btn-row {
+          margin-top: 28px;
+        }
+        .pms-btn-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--maroon);
+          color: var(--white);
+          border: 1px solid var(--maroon);
+          border-radius: 3px;
+          font-family: 'Inter', sans-serif;
+          font-size: 15px;
+          font-weight: 600;
+          padding: 14px 26px;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+        .pms-btn-primary:hover { background: var(--maroon-deep); }
+        .pms-btn-primary:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+        }
+        .pms-btn-outline {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: transparent;
+          color: var(--maroon-deep);
+          border: 1px solid var(--maroon-deep);
+          border-radius: 3px;
+          font-family: 'Inter', sans-serif;
+          font-size: 15px;
+          font-weight: 600;
+          padding: 14px 26px;
+          cursor: pointer;
+          transition: background 0.15s ease;
+          text-decoration: none;
+        }
+        .pms-btn-outline:hover { background: rgba(122,36,31,0.06); }
+
+        .pms-form-field { margin-bottom: 26px; }
+        .pms-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--maroon-deep);
+          margin-bottom: 9px;
+        }
+        .pms-input {
+          width: 100%;
+          background: var(--white);
+          border: 1px solid var(--line);
+          border-radius: 3px;
+          padding: 13px 16px;
+          font-family: 'Inter', sans-serif;
+          font-size: 15px;
+          color: var(--ink);
+        }
+        .pms-input:focus-visible {
+          outline: 2px solid var(--maroon);
+          outline-offset: 2px;
+        }
+        .pms-consent-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          margin: 22px 0 6px;
+        }
+        .pms-consent-row input {
+          margin-top: 4px;
+          width: 16px;
+          height: 16px;
+          accent-color: var(--maroon);
+          flex-shrink: 0;
+        }
+        .pms-consent-text {
+          font-size: 13px;
+          line-height: 1.55;
+          color: var(--text);
+        }
+        .pms-privacy-link {
+          color: var(--maroon-deep);
+          text-decoration: underline;
+        }
+        .pms-field-hint {
+          font-size: 13px;
+          color: var(--rose-deep);
+          margin: 10px 0 0;
+        }
+        .pms-form-error {
+          font-size: 13px;
+          color: var(--maroon);
+          margin-bottom: 14px;
+        }
+
+        .pms-result-para {
+          font-size: 16px;
+          line-height: 1.7;
+          color: var(--text);
+          margin: 0 0 20px;
+        }
+        .pms-mirror {
+          background: var(--cream-panel);
+          border-left: 3px solid var(--rose-deep);
+          padding: 14px 18px;
+          font-size: 14.5px;
+          font-style: italic;
+          color: var(--maroon-deep);
+          line-height: 1.55;
+          margin: 0 0 32px;
+        }
+        .pms-divider {
+          border: none;
+          border-top: 1px solid var(--line);
+          margin: 0 0 32px;
+        }
+        .pms-bridge {
+          border-left: 3px solid var(--maroon);
+          padding-left: 20px;
+          font-family: 'Fraunces', serif;
+          font-style: italic;
+          font-weight: 400;
+          font-size: 18px;
+          line-height: 1.55;
+          color: var(--ink);
+          margin: 0 0 40px;
+        }
+
+        .pms-cta-block {
+          background: var(--cream-panel);
+          border-radius: 4px;
+          padding: 28px 26px;
+          margin-bottom: 16px;
+        }
+        .pms-cta-headline {
+          font-family: 'Fraunces', serif;
+          font-weight: 600;
+          font-size: 20px;
+          color: var(--maroon-deep);
+          margin: 0 0 6px;
+        }
+        .pms-cta-sub {
+          font-size: 14.5px;
+          line-height: 1.55;
+          color: var(--text);
+          margin: 0 0 18px;
+        }
+        .pms-price-note {
+          font-size: 13px;
+          color: var(--rose-deep);
+          margin-top: 14px;
+        }
+
+        .pms-secondary-wrap {
+          text-align: center;
+          margin-top: 18px;
+        }
+        .pms-secondary-lead {
+          font-size: 13px;
+          color: var(--text);
+          margin-bottom: 10px;
+        }
+        .pms-secondary-note {
+          margin-top: 10px;
+          margin-bottom: 0;
+        }
+        .pms-next-step {
+          font-family: 'Fraunces', serif;
+          font-weight: 600;
+          font-size: 18px;
+          color: var(--maroon-deep);
+          margin: 0 0 18px;
+        }
+
+        .pms-restart {
+          display: block;
+          text-align: center;
+          margin-top: 44px;
+          font-size: 12.5px;
+          color: var(--rose-deep);
+          background: none;
+          border: none;
+          cursor: pointer;
+        }
+        .pms-restart:hover { color: var(--maroon); text-decoration: underline; }
+
+        .pms-credentials {
+          font-family: 'Fraunces', serif;
+          font-style: italic;
+          font-size: 13px;
+          color: var(--rose-deep);
+          margin-top: 36px;
+        }
+
+        @media (max-width: 480px) {
+          .pms-h1 { font-size: 27px; }
+          .pms-question-h { font-size: 21px; }
+          .pms-body { padding: 40px 18px 64px; }
+          .pms-header { padding: 16px 18px; }
+        }
+      `}</style>
+
+      <div className="pms-decor" />
+      <div className="pms-progress-track">
+        <div className="pms-progress-fill" style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="pms-header">
+        <span className="pms-wordmark">The PMS Practitioner</span>
+        <span className="pms-step-label">
+          {step === "intro" && "Free Assessment"}
+          {typeof step === "number" && `Question ${step + 1} of ${TOTAL_QUESTIONS}`}
+          {step === "capture" && "Your Result"}
+          {step === "result" && "Your Result"}
+          {step === "registerForm" && "Register Interest"}
+          {step === "sent" && "Register Interest"}
+        </span>
+      </div>
+
+      <div className="pms-body">
+        {/* INTRO */}
+        {step === "intro" && (
+          <>
+            <p className="pms-eyebrow">Free Assessment</p>
+            <h1 className="pms-h1">Let's find out where you're stuck.</h1>
+            <p className="pms-lede">
+              Just an honest look at what you've tried, what's been said to you, and
+              what you're actually ready to change. Takes about two minutes.
+            </p>
+            <div className="pms-btn-row">
+              <button className="pms-btn-primary" onClick={handleStart}>
+                Start the assessment <span aria-hidden="true">&nbsp;&rarr;</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* SCORED QUESTIONS */}
+        {typeof step === "number" && step < SCORED_QUESTIONS.length && (
+          <>
+            <button className="pms-back" onClick={handleBack}>
+              <span aria-hidden="true">&larr;&nbsp;</span> Back
+            </button>
+            <h2 className="pms-question-h">{SCORED_QUESTIONS[step].text}</h2>
+            <div className="pms-options">
+              {SCORED_QUESTIONS[step].options.map((opt) => {
+                const isSelected =
+                  answers[SCORED_QUESTIONS[step].id] &&
+                  answers[SCORED_QUESTIONS[step].id].label === opt.label;
+                return (
+                  <button
+                    key={opt.label}
+                    className={`pms-option${isSelected ? " selected" : ""}`}
+                    style={{
+                      borderColor: isSelected ? "#7A241F" : "rgba(58, 24, 21, 0.14)",
+                      backgroundColor: isSelected ? "#FCF3EF" : "#FBF8F2",
+                    }}
+                    onClick={() => handleSelectOption(SCORED_QUESTIONS[step], opt)}
+                    aria-pressed={isSelected}
+                  >
+                    <span>{opt.label}</span>
+                    <span className="pms-option-check">
+                      {isSelected && <span aria-hidden="true">&#10003;</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* FREE TEXT QUESTIONS */}
+        {typeof step === "number" &&
+          step >= SCORED_QUESTIONS.length &&
+          step < allQuestions.length && (
+            (() => {
+              const q = FREE_QUESTIONS[step - SCORED_QUESTIONS.length];
+              return (
+                <>
+                  <button className="pms-back" onClick={handleBack}>
+                    <span aria-hidden="true">&larr;&nbsp;</span> Back
+                  </button>
+                  <h2 className="pms-question-h">
+                    {q.text} <span className="pms-optional-tag">(optional)</span>
+                  </h2>
+                  <textarea
+                    className="pms-textarea"
+                    placeholder={q.placeholder}
+                    value={draftText}
+                    onChange={(e) => setDraftText(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="pms-btn-row">
+                    <button
+                      className="pms-btn-primary"
+                      onClick={() => handleFreeTextNext(q)}
+                    >
+                      Continue <span aria-hidden="true">&nbsp;&rarr;</span>
+                    </button>
+                  </div>
+                </>
+              );
+            })()
+          )}
+
+        {/* CAPTURE */}
+        {step === "capture" && (
+          <>
+            <button className="pms-back" onClick={handleBack}>
+              <span aria-hidden="true">&larr;&nbsp;</span> Back
+            </button>
+            <p className="pms-eyebrow">Almost there</p>
+            <h2 className="pms-question-h">Where should I send your result?</h2>
+            <form onSubmit={handleSubmitCapture}>
+              <div className="pms-form-field">
+                <label className="pms-label" htmlFor="pms-name">First name</label>
+                <input
+                  id="pms-name"
+                  className="pms-input"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Emma"
+                />
+              </div>
+              <div className="pms-form-field">
+                <label className="pms-label" htmlFor="pms-email">Email</label>
+                <input
+                  id="pms-email"
+                  className="pms-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                />
+              </div>
+              <div className="pms-consent-row">
+                <input
+                  id="pms-consent"
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                <label className="pms-consent-text" htmlFor="pms-consent">
+                  Send my result to my inbox, and add me to Coline's email list, where
+                  she shares PMS insight most weeks. Unsubscribe any time.
+                </label>
+              </div>
+              {formError && <p className="pms-form-error">{formError}</p>}
+              <div className="pms-btn-row">
+                <button className="pms-btn-primary" type="submit">
+                  See your result <span aria-hidden="true">&nbsp;&rarr;</span>
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        {/* RESULT */}
+        {step === "result" && result && (
+          <>
+            <p className="pms-eyebrow">{result.eyebrow}</p>
+            <h1 className="pms-h1">{result.titleFn(name.trim())}</h1>
+            <p className="pms-result-para">{result.paragraph}</p>
+
+            <hr className="pms-divider" />
+            <p className="pms-bridge">{BRIDGE_TEXT}</p>
+
+            <p className="pms-next-step">So, what's your next step?</p>
+
+            <div className="pms-cta-block">
+              <p className="pms-cta-headline">{result.ctaHeadline}</p>
+              <p className="pms-cta-sub">{result.ctaSub}</p>
+              <button className="pms-btn-primary" type="button" onClick={handleOpenRegisterForm}>
+                Register Your Interest <span aria-hidden="true">&nbsp;&rarr;</span>
+              </button>
+            </div>
+
+            <div className="pms-secondary-wrap">
+              <p className="pms-secondary-lead">Not sure this is the right fit yet?</p>
+              <button className="pms-btn-outline" type="button">
+                {SECONDARY_CTA}
+              </button>
+              <p className="pms-secondary-lead pms-secondary-note">to meet your nutritional therapist first</p>
+            </div>
+
+            <p className="pms-credentials">
+              DipNT · ANP Registered · Trained at CNM · Menstrual Cycle Awareness Coach
+            </p>
+
+            <button className="pms-restart" onClick={() => {
+              setAnswers({});
+              setName("");
+              setEmail("");
+              setConsent(false);
+              setLocation("");
+              setConditions([]);
+              setNextStep("call");
+              setRegisterConsent(false);
+                        setStep("intro");
+            }}>
+              Retake the assessment
+            </button>
+          </>
+        )}
+
+        {/* REGISTER INTEREST FORM */}
+        {step === "registerForm" && result && (
+          <>
+            <button className="pms-back" onClick={handleBack}>
+              <span aria-hidden="true">&larr;&nbsp;</span> Back
+            </button>
+            <p className="pms-eyebrow">The Rhythm Reset</p>
+            <h2 className="pms-question-h">Register your interest</h2>
+            <p className="pms-lede">
+              A few quick details — this opens your email app with everything
+              filled in, ready to send to Coline.
+            </p>
+
+            <div className="pms-form-field">
+              <label className="pms-label" htmlFor="pms-reg-name">First name</label>
+              <input
+                id="pms-reg-name"
+                className="pms-input"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Emma"
+              />
+            </div>
+
+            <div className="pms-form-field">
+              <label className="pms-label" htmlFor="pms-location">
+                Current location (country)
+              </label>
+              <input
+                id="pms-location"
+                className="pms-input"
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. United Kingdom"
+              />
+            </div>
+
+            <div className="pms-form-field">
+              <label className="pms-label">What are you dealing with?</label>
+              <p className="pms-field-hint" style={{ marginTop: -2 }}>Select all that apply.</p>
+              <div className="pms-checkbox-list">
+                {CONDITION_OPTIONS.map((option) => {
+                  const isChecked = conditions.includes(option);
+                  const inputId = `pms-condition-${option}`;
+                  return (
+                    <div className="pms-checkbox-item" key={option}>
+                      <input
+                        id={inputId}
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCondition(option)}
+                      />
+                      <label htmlFor={inputId}>{option}</label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pms-form-field">
+              <label className="pms-label">What would you like to do next?</label>
+              <div className="pms-checkbox-list">
+                <div className="pms-checkbox-item">
+                  <input
+                    id="pms-next-call"
+                    type="radio"
+                    name="pms-next-step"
+                    checked={nextStep === "call"}
+                    onChange={() => setNextStep("call")}
+                  />
+                  <label htmlFor="pms-next-call">Book a free 10-minute call first</label>
+                </div>
+                <div className="pms-checkbox-item">
+                  <input
+                    id="pms-next-book"
+                    type="radio"
+                    name="pms-next-step"
+                    checked={nextStep === "book"}
+                    onChange={() => setNextStep("book")}
+                  />
+                  <label htmlFor="pms-next-book">I'm ready to book the Rhythm Reset now</label>
+                </div>
+              </div>
+            </div>
+
+            <div className="pms-consent-row">
+              <input
+                id="pms-register-consent"
+                type="checkbox"
+                checked={registerConsent}
+                onChange={(e) => setRegisterConsent(e.target.checked)}
+              />
+              <label className="pms-consent-text" htmlFor="pms-register-consent">
+                I consent to Coline seeing and using the information above to
+                assess whether her services are a good fit for me. See the{" "}
+                <a
+                  href={PRIVACY_POLICY_URL}
+                  className="pms-privacy-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </label>
+            </div>
+
+            {regFormError && <p className="pms-form-error">{regFormError}</p>}
+
+            <div className="pms-btn-row">
+              <button className="pms-btn-primary" type="button" onClick={handleSendRegistration}>
+                Open email to Coline <span aria-hidden="true">&nbsp;&rarr;</span>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* SENT CONFIRMATION */}
+        {step === "sent" && (
+          <>
+            <p className="pms-eyebrow">Thank you, {name || "there"}</p>
+            <h1 className="pms-h1">Your email should be open and ready to send.</h1>
+            <p className="pms-lede">
+              Your mail app should have opened with everything filled in — just
+              hit send. If nothing opened, email{" "}
+              <strong>colinemazeaud@marellehealth.com</strong> directly and
+              mention you took the PMS assessment.
+            </p>
+            <button className="pms-restart" onClick={() => {
+              setAnswers({});
+              setName("");
+              setEmail("");
+              setConsent(false);
+              setLocation("");
+              setConditions([]);
+              setNextStep("call");
+              setRegisterConsent(false);
+                        setStep("intro");
+            }}>
+              Retake the assessment
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const rootEl = document.getElementById("root");
+ReactDOM.createRoot(rootEl).render(<PMSAssessment />);
+</script>
+</body>
+</html>
